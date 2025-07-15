@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Excel to Markdown Converter
+Excel to Markdown Converter - AI-Assisted Workflow
 
-A command-line tool to extract data tables from Excel files and convert them to Markdown format.
-Handles Excel files where data doesn't start at the first cell and extracts only specified columns.
+A command-line tool designed to work with AI assistants for analyzing and converting Excel files.
+Supports a two-step workflow:
+1. Convert entire Excel sheets to markdown files for AI analysis
+2. Filter and extract specific data based on AI-identified parameters
 """
 
 import argparse
@@ -12,7 +14,7 @@ import os
 from pathlib import Path
 import pandas as pd
 import openpyxl
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Tuple
 
 
 class ExcelProcessor:
@@ -41,190 +43,274 @@ class ExcelProcessor:
             print(f"Error loading Excel file: {e}")
             return False
     
-    def find_data_table_start(self) -> Optional[Tuple[int, int]]:
+    def convert_all_sheets_to_markdown(self, output_dir: str = "sheets_markdown") -> List[str]:
         """
-        Find the starting position of the data table by looking for the first row
-        that contains multiple non-empty cells (likely column headers).
+        Convert all sheets in the Excel file to markdown files for AI analysis.
+        This is Step 2 of the AI-assisted workflow.
+        
+        Args:
+            output_dir: Directory to save markdown files
+            
+        Returns:
+            List of generated file paths
         """
-        max_row = self.worksheet.max_row
-        max_col = self.worksheet.max_column
+        if not self.load_excel():
+            return []
         
-        for row in range(1, max_row + 1):
-            non_empty_cells = 0
-            consecutive_cells = 0
-            max_consecutive = 0
-            
-            for col in range(1, max_col + 1):
-                cell_value = self.worksheet.cell(row=row, column=col).value
-                if cell_value is not None and str(cell_value).strip():
-                    non_empty_cells += 1
-                    consecutive_cells += 1
-                    max_consecutive = max(max_consecutive, consecutive_cells)
-                else:
-                    consecutive_cells = 0
-            
-            # Consider it a header row if it has at least 2 non-empty cells
-            # and at least 2 consecutive non-empty cells
-            if non_empty_cells >= 2 and max_consecutive >= 2:
-                return (row, 1)
+        os.makedirs(output_dir, exist_ok=True)
+        generated_files = []
         
-        return None
+        for sheet_name in self.workbook.sheetnames:
+            print(f"Processing sheet: {sheet_name}")
+            
+            worksheet = self.workbook[sheet_name]
+            markdown_content = self._sheet_to_markdown(worksheet, sheet_name)
+            
+            # Create safe filename
+            safe_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            output_file = os.path.join(output_dir, f"{safe_name}.md")
+            
+            try:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    f.write(markdown_content)
+                print(f"Saved {sheet_name} to {output_file}")
+                generated_files.append(output_file)
+            except Exception as e:
+                print(f"Error saving {sheet_name}: {e}")
+        
+        return generated_files
     
-    def extract_column_headers(self, start_row: int, start_col: int) -> List[str]:
-        """Extract column headers from the identified header row."""
+    def _sheet_to_markdown(self, worksheet, sheet_name: str) -> str:
+        """Convert an entire worksheet to markdown format with cell references for AI analysis."""
+        lines = [f"# Sheet: {sheet_name}\n", "## Raw Data with Cell References\n"]
+        
+        # Collect all data with cell references
+        data_rows = []
+        for row in range(1, worksheet.max_row + 1):
+            row_data = []
+            has_content = False
+            
+            for col in range(1, worksheet.max_column + 1):
+                cell_value = worksheet.cell(row=row, column=col).value
+                
+                if cell_value is not None:
+                    col_letter = openpyxl.utils.get_column_letter(col)
+                    row_data.append(f"{cell_value} ({col_letter}{row})")
+                    has_content = True
+                else:
+                    row_data.append("")
+            
+            if has_content:
+                data_rows.append(row_data)
+        
+        # Convert to DataFrame and generate markdown table
+        if data_rows:
+            max_cols = max(len(row) for row in data_rows)
+            padded_rows = [row + [""] * (max_cols - len(row)) for row in data_rows]
+            
+            df = pd.DataFrame(padded_rows, columns=[f"Col {i+1}" for i in range(max_cols)])
+            lines.append(df.to_markdown(index=False, tablefmt='github'))
+        
+        # Add summary
+        lines.extend([
+            "\n## Summary for AI Analysis",
+            f"- Total rows with data: {len(data_rows)}",
+            f"- Total columns: {worksheet.max_column}",
+            f"- Sheet name: {sheet_name}",
+            "- Cell references are included in parentheses for precise identification"
+        ])
+        
+        return "\n".join(lines)
+    
+    def filter_data_by_criteria(self, start_cell: str, columns: Optional[List[str]], 
+                               primary_column: str, key_value: str, 
+                               output_path: str, sheet_name: Optional[str] = None) -> str:
+        """
+        Filter data based on AI-identified criteria.
+        This is Step 5 of the AI-assisted workflow.
+        
+        Args:
+            start_cell: Cell reference where data table starts (e.g., "A6")
+            columns: List of column names to extract (None = all columns)
+            primary_column: Column to filter by
+            key_value: Value to filter for in the primary column
+            output_path: Path to save filtered markdown
+            sheet_name: Sheet name to process (optional)
+            
+        Returns:
+            Generated markdown content or empty string if failed
+        """
+        if not self.load_excel(sheet_name):
+            return ""
+        
+        start_row, start_col = self._parse_cell_reference(start_cell)
+        print(f"Starting data extraction from cell {start_cell} (row {start_row}, col {start_col})")
+        
+        # Extract and validate headers
+        headers = self._extract_headers_from_position(start_row, start_col)
+        print(f"Found headers: {headers}")
+        
+        # If no columns specified, use all available columns
+        if columns is None:
+            columns = [h for h in headers if h]  # Filter out empty headers
+            print(f"No columns specified, using all columns: {columns}")
+        
+        column_indices = self._find_column_indices(headers, columns)
+        primary_col_index = self._find_column_indices(headers, [primary_column])
+        
+        if not column_indices:
+            print("Error: None of the specified columns were found.")
+            return ""
+        
+        if not primary_col_index:
+            print(f"Error: Primary column '{primary_column}' not found.")
+            return ""
+        
+        # Extract and filter data
+        filtered_data = self._extract_filtered_data(
+            start_row + 1, start_col, column_indices, 
+            primary_col_index[0], key_value
+        )
+        
+        if not filtered_data:
+            print(f"No data found for {primary_column} = '{key_value}'")
+            return ""
+        
+        # Create and save markdown
+        filtered_headers = [headers[i] for i in column_indices]
+        df = pd.DataFrame(filtered_data, columns=filtered_headers)
+        
+        print(f"Filtered data: {len(df)} rows matching criteria")
+        
+        markdown_content = self._create_filtered_markdown(df, primary_column, key_value, start_cell)
+        
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
+            print(f"Filtered data saved to: {output_path}")
+        except Exception as e:
+            print(f"Error saving file: {e}")
+            return ""
+        
+        return markdown_content
+    
+    def _parse_cell_reference(self, cell_ref: str) -> Tuple[int, int]:
+        """Parse cell reference like 'A3' into row and column numbers."""
+        col_str = ""
+        row_str = ""
+        
+        for char in cell_ref:
+            if char.isalpha():
+                col_str += char
+            else:
+                row_str += char
+        
+        col_num = openpyxl.utils.column_index_from_string(col_str)
+        row_num = int(row_str)
+        
+        return row_num, col_num
+    
+    def _extract_headers_from_position(self, row: int, col: int) -> List[str]:
+        """Extract headers from a specific position."""
         headers = []
         max_col = self.worksheet.max_column
         
-        for col in range(start_col, max_col + 1):
-            cell_value = self.worksheet.cell(row=start_row, column=col).value
+        for c in range(col, max_col + 1):
+            cell_value = self.worksheet.cell(row=row, column=c).value
             if cell_value is not None:
                 headers.append(str(cell_value).strip())
             else:
-                # Stop when we hit an empty cell after finding some headers
-                if headers:
+                if headers:  # Stop at first empty cell after finding headers
                     break
                 headers.append("")
         
         return headers
     
-    def extract_data_table(self, required_columns: List[str]) -> Optional[pd.DataFrame]:
-        """
-        Extract the data table from Excel file, filtering for required columns only.
-        """
-        # Find the start of the data table
-        table_start = self.find_data_table_start()
-        if not table_start:
-            print("Error: Could not find data table in the Excel file.")
-            return None
-        
-        start_row, start_col = table_start
-        print(f"Found data table starting at row {start_row}, column {start_col}")
-        
-        # Extract column headers
-        headers = self.extract_column_headers(start_row, start_col)
-        print(f"Found headers: {headers}")
-        
-        # Find indices of required columns
-        required_indices = []
-        missing_columns = []
-        
-        for req_col in required_columns:
-            try:
-                # Case-insensitive matching
-                index = next(i for i, h in enumerate(headers) if h.lower() == req_col.lower())
-                required_indices.append(index)
-            except StopIteration:
-                missing_columns.append(req_col)
-        
-        if missing_columns:
-            print(f"Warning: The following required columns were not found: {missing_columns}")
-            print(f"Available columns: {[h for h in headers if h]}")
-        
-        if not required_indices:
-            print("Error: None of the required columns were found in the Excel file.")
-            return None
-        
-        # Extract data rows
-        data_rows = []
+    def _find_column_indices(self, headers: List[str], target_columns: List[str]) -> List[int]:
+        """Find indices of target columns in headers."""
+        indices = []
+        for target in target_columns:
+            for i, header in enumerate(headers):
+                if header.lower() == target.lower():
+                    indices.append(i)
+                    break
+        return indices
+    
+    def _extract_filtered_data(self, start_row: int, start_col: int, 
+                              column_indices: List[int], primary_col_index: int, 
+                              key_value: str) -> List[List[str]]:
+        """Extract data rows that match the filter criteria."""
+        filtered_rows = []
         max_row = self.worksheet.max_row
         
-        for row in range(start_row + 1, max_row + 1):
-            row_data = []
-            has_data = False
+        for row in range(start_row, max_row + 1):
+            # Check if this row matches the filter criteria
+            primary_cell_value = self.worksheet.cell(row=row, column=start_col + primary_col_index).value
             
-            for col_index in required_indices:
-                cell_value = self.worksheet.cell(row=row, column=start_col + col_index).value
-                if cell_value is not None:
-                    row_data.append(str(cell_value).strip())
-                    has_data = True
-                else:
-                    row_data.append("")
-            
-            # Only add row if it has at least one non-empty cell
-            if has_data:
-                data_rows.append(row_data)
-            else:
-                # Stop when we hit an empty row (end of data)
-                if data_rows:
-                    break
+            if primary_cell_value is not None and str(primary_cell_value).strip().lower() == key_value.lower():
+                # Extract data for specified columns
+                row_data = []
+                for col_idx in column_indices:
+                    cell_value = self.worksheet.cell(row=row, column=start_col + col_idx).value
+                    row_data.append(str(cell_value).strip() if cell_value is not None else "")
+                
+                filtered_rows.append(row_data)
         
-        # Create DataFrame with filtered columns
-        filtered_headers = [headers[i] for i in required_indices]
-        df = pd.DataFrame(data_rows, columns=filtered_headers)
-        
-        return df
+        return filtered_rows
     
-    def dataframe_to_markdown(self, df: pd.DataFrame) -> str:
-        """Convert DataFrame to Markdown table format."""
-        if df.empty:
-            return "No data found."
+    def _create_filtered_markdown(self, df: pd.DataFrame, primary_column: str, 
+                                 key_value: str, start_cell: str) -> str:
+        """Create markdown content with metadata for filtered data."""
+        lines = [
+            f"# Filtered Data: {primary_column} = '{key_value}'",
+            "",
+            "## Metadata",
+            f"- Filter criteria: {primary_column} = '{key_value}'",
+            f"- Data source starting cell: {start_cell}",
+            f"- Total matching rows: {len(df)}",
+            f"- Columns included: {', '.join(df.columns)}",
+            "",
+            "## Data Table",
+            ""
+        ]
         
-        # Create markdown table
-        markdown_lines = []
+        # Add the actual data table
+        lines.append(df.to_markdown(index=False))
         
-        # Header row
-        header_row = "| " + " | ".join(df.columns) + " |"
-        markdown_lines.append(header_row)
-        
-        # Separator row
-        separator_row = "| " + " | ".join(["---"] * len(df.columns)) + " |"
-        markdown_lines.append(separator_row)
-        
-        # Data rows
-        for _, row in df.iterrows():
-            data_row = "| " + " | ".join([str(val) if val else "" for val in row]) + " |"
-            markdown_lines.append(data_row)
-        
-        return "\n".join(markdown_lines)
-    
-    def process_excel_to_markdown(self, required_columns: List[str], 
-                                 output_path: Optional[str] = None,
-                                 sheet_name: Optional[str] = None) -> str:
-        """
-        Main processing function to convert Excel to Markdown.
-        """
-        if not self.load_excel(sheet_name):
-            return ""
-        
-        df = self.extract_data_table(required_columns)
-        if df is None:
-            return ""
-        
-        print(f"Extracted {len(df)} rows and {len(df.columns)} columns")
-        
-        markdown_content = self.dataframe_to_markdown(df)
-        
-        if output_path:
-            try:
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(markdown_content)
-                print(f"Markdown file saved to: {output_path}")
-            except Exception as e:
-                print(f"Error saving file: {e}")
-        
-        return markdown_content
+        return "\n".join(lines)
 
 
 def main():
-    """Main function for command-line interface."""
+    """Main function for command-line interface with AI-assisted workflow support."""
     parser = argparse.ArgumentParser(
-        description="Convert Excel data tables to Markdown format",
+        description="Excel to Markdown Converter - AI-Assisted Workflow",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  python excel_processor.py input.xlsx -c "Name" "Job" -o output.md
-  python excel_processor.py data.xlsx -c "Name" "Age" "Job" -s "Sheet1"
-  python excel_processor.py file.xlsx -c "Name" "Job" --print-only
+AI-Assisted Workflow Examples:
+
+Step 2 - Convert all sheets to markdown for AI analysis:
+  python excel_processor.py input.xlsx --convert-all
+
+Step 5 - Filter data based on AI analysis:
+  python excel_processor.py input.xlsx -s "A6" -c "Name" "Job" -pc "Department" -k "Engineering" -o "engineering.md"
         """
     )
     
     parser.add_argument("input_file", help="Path to the Excel file")
-    parser.add_argument("-c", "--columns", nargs="+", required=True,
-                       help="List of column names to extract (space-separated)")
-    parser.add_argument("-o", "--output", help="Output Markdown file path")
-    parser.add_argument("-s", "--sheet", help="Sheet name to process (default: first sheet)")
-    parser.add_argument("--print-only", action="store_true",
-                       help="Print markdown to stdout instead of saving to file")
+    
+    # AI-assisted workflow options
+    parser.add_argument("--convert-all", action="store_true",
+                       help="Convert all sheets to markdown files for AI analysis (Step 2)")
+    parser.add_argument("-s", "--start-cell", 
+                       help="Starting cell of data table (e.g., 'A6') for filtering (Step 5)")
+    parser.add_argument("-c", "--columns", nargs="*",
+                       help="List of column names to extract (Step 5). If not specified, all columns will be included.")
+    parser.add_argument("-pc", "--primary-column", 
+                       help="Primary column to filter by (Step 5)")
+    parser.add_argument("-k", "--key-value", 
+                       help="Value to filter for in primary column (Step 5)")
+    parser.add_argument("-o", "--output", help="Output file path")
+    parser.add_argument("--sheet", help="Sheet name to process")
     
     args = parser.parse_args()
     
@@ -233,31 +319,48 @@ Examples:
         print(f"Error: Input file '{args.input_file}' does not exist.")
         sys.exit(1)
     
-    # Determine output path
-    output_path = None
-    if not args.print_only:
-        if args.output:
-            output_path = args.output
-        else:
-            # Generate default output filename
-            input_path = Path(args.input_file)
-            output_path = input_path.with_suffix('.md')
-    
-    # Process the Excel file
     processor = ExcelProcessor(args.input_file)
-    markdown_content = processor.process_excel_to_markdown(
-        args.columns, output_path, args.sheet
-    )
     
-    if args.print_only and markdown_content:
-        print("\n" + "="*50)
-        print("MARKDOWN OUTPUT:")
-        print("="*50)
-        print(markdown_content)
+    # Step 2: Convert all sheets to markdown
+    if args.convert_all:
+        print("Converting all sheets to markdown for AI analysis...")
+        output_dir = args.output or "sheets_markdown"
+        generated_files = processor.convert_all_sheets_to_markdown(output_dir)
+        
+        if generated_files:
+            print(f"\nGenerated {len(generated_files)} markdown files:")
+            for file in generated_files:
+                print(f"  - {file}")
+            print(f"\nNext: Have the AI analyze these files to identify:")
+            print("  - Column headers")
+            print("  - Starting cell of actual data")
+            print("  - Primary keys and data structure")
+        else:
+            print("Failed to generate markdown files.")
+            sys.exit(1)
+        return
     
-    if not markdown_content:
-        print("Failed to process the Excel file.")
-        sys.exit(1)
+    # Step 5: Filter data based on AI analysis
+    if args.start_cell and args.primary_column and args.key_value:
+        if not args.output:
+            print("Error: Output file (-o) is required for filtering.")
+            sys.exit(1)
+        
+        print("Filtering data based on AI analysis...")
+        result = processor.filter_data_by_criteria(
+            args.start_cell, args.columns, args.primary_column, 
+            args.key_value, args.output, args.sheet
+        )
+        
+        if not result:
+            print("Failed to filter data.")
+            sys.exit(1)
+        return
+    
+    # Show usage if no valid mode specified
+    print("Error: Please specify either --convert-all or provide filtering parameters.")
+    print("Use --help for usage examples.")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
