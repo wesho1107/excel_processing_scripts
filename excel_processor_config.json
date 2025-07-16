@@ -1,0 +1,384 @@
+{
+  "tool_name": "Advanced Excel Processor",
+  "description": "Comprehensive Excel manipulation tool for AI agents",
+  "executable": "python scripts/excel/excel_advanced_processor.py",
+  "capabilities": [
+    "Create and manipulate Excel workbooks",
+    "Read and write data to specific ranges",
+    "Apply formatting (fonts, colors, borders)",
+    "Create charts (line, bar, pie, scatter, area)",
+    "Generate pivot tables for data analysis",
+    "Create native Excel tables",
+    "Apply Excel formulas",
+    "Manage worksheets (copy, delete, rename)"
+  ],
+  "operations": {
+    "create_workbook": {
+      "command": "--create-workbook",
+      "description": "Create a new Excel workbook",
+      "parameters": {
+        "filepath": {
+          "type": "string",
+          "required": true,
+          "description": "Path where to create the workbook"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py --create-workbook 'new_file.xlsx'"
+    },
+    "get_metadata": {
+      "command": "--metadata",
+      "description": "Get comprehensive metadata about workbook",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "include_ranges": {
+          "type": "boolean",
+          "required": false,
+          "description": "Include detailed range information"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --metadata --include-ranges"
+    },
+    "read_data": {
+      "command": "--read-data",
+      "description": "Read data from specific range",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the worksheet"
+        },
+        "range": {
+          "type": "string",
+          "required": true,
+          "description": "Cell range (e.g., 'A1:D10')"
+        },
+        "preview_only": {
+          "type": "boolean",
+          "required": false,
+          "description": "Limit to first 10 rows"
+        },
+        "output": {
+          "type": "string",
+          "required": false,
+          "description": "Output file path for JSON data"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --read-data 'Sheet1' 'A1:D10' --preview-only -o 'output.json'"
+    },
+    "write_data": {
+      "command": "--write-data",
+      "description": "Write data to specific range",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the worksheet"
+        },
+        "start_cell": {
+          "type": "string",
+          "required": true,
+          "description": "Starting cell (e.g., 'A1')"
+        },
+        "input_data": {
+          "type": "string",
+          "required": true,
+          "description": "JSON file containing data array"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --write-data 'Sheet1' 'A1' --input-data 'data.json'"
+    },
+    "format_range": {
+      "command": "--format-range",
+      "description": "Apply formatting to cell range",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the worksheet"
+        },
+        "start_cell": {
+          "type": "string",
+          "required": true,
+          "description": "Starting cell"
+        },
+        "end_cell": {
+          "type": "string",
+          "required": true,
+          "description": "Ending cell"
+        },
+        "bold": {
+          "type": "boolean",
+          "required": false,
+          "description": "Apply bold formatting"
+        },
+        "italic": {
+          "type": "boolean",
+          "required": false,
+          "description": "Apply italic formatting"
+        },
+        "font_size": {
+          "type": "integer",
+          "required": false,
+          "description": "Font size in points"
+        },
+        "font_color": {
+          "type": "string",
+          "required": false,
+          "description": "Font color in hex (e.g., 'FF0000')"
+        },
+        "bg_color": {
+          "type": "string",
+          "required": false,
+          "description": "Background color in hex (e.g., 'FFFF00')"
+        },
+        "border_style": {
+          "type": "string",
+          "required": false,
+          "description": "Border style (thin, medium, thick)"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --format-range 'Sheet1' 'A1' 'D1' --bold --bg-color 'FF0000'"
+    },
+    "create_chart": {
+      "command": "--create-chart",
+      "description": "Create chart from data range",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the worksheet"
+        },
+        "data_range": {
+          "type": "string",
+          "required": true,
+          "description": "Data range for chart (e.g., 'A1:D10')"
+        },
+        "chart_type": {
+          "type": "string",
+          "required": true,
+          "description": "Chart type (line, bar, pie, scatter, area)"
+        },
+        "target_cell": {
+          "type": "string",
+          "required": true,
+          "description": "Cell where to place chart"
+        },
+        "title": {
+          "type": "string",
+          "required": false,
+          "description": "Chart title"
+        },
+        "x_axis": {
+          "type": "string",
+          "required": false,
+          "description": "X-axis label"
+        },
+        "y_axis": {
+          "type": "string",
+          "required": false,
+          "description": "Y-axis label"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --create-chart 'Sheet1' 'A1:D10' 'bar' 'F1' --title 'Sales Chart' --x-axis 'Months' --y-axis 'Revenue'"
+    },
+    "create_pivot": {
+      "command": "--create-pivot",
+      "description": "Create pivot table from data",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the worksheet"
+        },
+        "data_range": {
+          "type": "string",
+          "required": true,
+          "description": "Data range for pivot (e.g., 'A1:D100')"
+        },
+        "rows": {
+          "type": "array",
+          "required": true,
+          "description": "Column names for pivot rows"
+        },
+        "values": {
+          "type": "array",
+          "required": true,
+          "description": "Column names for pivot values"
+        },
+        "columns": {
+          "type": "array",
+          "required": false,
+          "description": "Column names for pivot columns"
+        },
+        "agg_func": {
+          "type": "string",
+          "required": false,
+          "description": "Aggregation function (sum, mean, count, max, min)"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --create-pivot 'Sheet1' 'A1:D100' --rows 'Department' --values 'Salary' --agg-func 'sum'"
+    },
+    "create_table": {
+      "command": "--create-table",
+      "description": "Create native Excel table",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the worksheet"
+        },
+        "data_range": {
+          "type": "string",
+          "required": true,
+          "description": "Data range for table (e.g., 'A1:D10')"
+        },
+        "table_name": {
+          "type": "string",
+          "required": false,
+          "description": "Name for the table"
+        },
+        "table_style": {
+          "type": "string",
+          "required": false,
+          "description": "Table style (e.g., 'TableStyleMedium9')"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --create-table 'Sheet1' 'A1:D10' --table-name 'EmployeeData'"
+    },
+    "apply_formula": {
+      "command": "--apply-formula",
+      "description": "Apply Excel formula to cell",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the worksheet"
+        },
+        "cell": {
+          "type": "string",
+          "required": true,
+          "description": "Target cell (e.g., 'E1')"
+        },
+        "formula": {
+          "type": "string",
+          "required": true,
+          "description": "Excel formula (e.g., '=SUM(A1:D1)')"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --apply-formula 'Sheet1' 'E1' '=SUM(A1:D1)'"
+    },
+    "copy_sheet": {
+      "command": "--copy-sheet",
+      "description": "Copy worksheet within workbook",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "source_sheet": {
+          "type": "string",
+          "required": true,
+          "description": "Name of source worksheet"
+        },
+        "target_sheet": {
+          "type": "string",
+          "required": true,
+          "description": "Name for copied worksheet"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --copy-sheet 'Sheet1' 'Sheet1_Backup'"
+    },
+    "delete_sheet": {
+      "command": "--delete-sheet",
+      "description": "Delete worksheet from workbook",
+      "parameters": {
+        "input_file": {
+          "type": "string",
+          "required": true,
+          "description": "Path to Excel file"
+        },
+        "sheet_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of worksheet to delete"
+        }
+      },
+      "example": "python scripts/excel/excel_advanced_processor.py 'input.xlsx' --delete-sheet 'UnwantedSheet'"
+    }
+  },
+  "common_workflows": {
+    "data_analysis": [
+      "Use --metadata to understand file structure",
+      "Use --read-data with --preview-only to explore data",
+      "Use --create-pivot to analyze data patterns",
+      "Use --create-chart to visualize results",
+      "Use --format-range to improve presentation"
+    ],
+    "report_generation": [
+      "Use --create-workbook to start new report",
+      "Use --write-data to add data from JSON",
+      "Use --create-table to format data professionally",
+      "Use --apply-formula for calculations",
+      "Use --create-chart for visualizations"
+    ],
+    "data_processing": [
+      "Use --copy-sheet to create backup",
+      "Use --read-data to extract data",
+      "Process data externally",
+      "Use --write-data to update results",
+      "Use --format-range for final presentation"
+    ]
+  },
+  "error_handling": {
+    "file_not_found": "Check file path and ensure file exists",
+    "invalid_sheet": "Use --metadata to see available sheet names",
+    "invalid_range": "Use format 'A1:D10' for ranges",
+    "missing_parameters": "Check required parameters for each operation",
+    "permission_error": "Ensure file is not open in Excel"
+  },
+  "output_formats": {
+    "json": "Data operations return JSON format",
+    "console": "Status messages and errors to console",
+    "excel": "Direct modifications to Excel files"
+  }
+}

@@ -1,0 +1,230 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Excel Processor: Create Workbook",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "scripts/excel/excel_advanced_processor.py",
+                "--create-workbook",
+                "${input:workbookPath}"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Excel Processor: Get Metadata",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "scripts/excel/excel_advanced_processor.py",
+                "${input:excelFile}",
+                "--metadata",
+                "--include-ranges"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Excel Processor: Read Data",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "scripts/excel/excel_advanced_processor.py",
+                "${input:excelFile}",
+                "--read-data",
+                "${input:sheetName}",
+                "${input:dataRange}",
+                "--preview-only"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Excel Processor: Format Range",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "scripts/excel/excel_advanced_processor.py",
+                "${input:excelFile}",
+                "--format-range",
+                "${input:sheetName}",
+                "${input:startCell}",
+                "${input:endCell}",
+                "--bold",
+                "--bg-color",
+                "366092",
+                "--font-color",
+                "FFFFFF"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Excel Processor: Create Chart",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "scripts/excel/excel_advanced_processor.py",
+                "${input:excelFile}",
+                "--create-chart",
+                "${input:sheetName}",
+                "${input:dataRange}",
+                "${input:chartType}",
+                "${input:targetCell}",
+                "--title",
+                "${input:chartTitle}"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Excel Processor: Create Pivot Table",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "scripts/excel/excel_advanced_processor.py",
+                "${input:excelFile}",
+                "--create-pivot",
+                "${input:sheetName}",
+                "${input:dataRange}",
+                "--rows",
+                "${input:pivotRows}",
+                "--values",
+                "${input:pivotValues}",
+                "--agg-func",
+                "sum"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Excel Processor: Run Demo",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "demo_advanced_excel.py"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "excelFile",
+            "description": "Excel file path",
+            "default": "sample_data.xlsx",
+            "type": "promptString"
+        },
+        {
+            "id": "workbookPath",
+            "description": "Path for new workbook",
+            "default": "new_workbook.xlsx",
+            "type": "promptString"
+        },
+        {
+            "id": "sheetName",
+            "description": "Sheet name",
+            "default": "Sheet1",
+            "type": "promptString"
+        },
+        {
+            "id": "dataRange",
+            "description": "Data range (e.g., A1:D10)",
+            "default": "A1:D10",
+            "type": "promptString"
+        },
+        {
+            "id": "startCell",
+            "description": "Start cell (e.g., A1)",
+            "default": "A1",
+            "type": "promptString"
+        },
+        {
+            "id": "endCell",
+            "description": "End cell (e.g., D1)",
+            "default": "D1",
+            "type": "promptString"
+        },
+        {
+            "id": "chartType",
+            "description": "Chart type",
+            "default": "bar",
+            "type": "pickString",
+            "options": [
+                "line",
+                "bar",
+                "pie",
+                "scatter",
+                "area"
+            ]
+        },
+        {
+            "id": "targetCell",
+            "description": "Target cell for chart (e.g., F1)",
+            "default": "F1",
+            "type": "promptString"
+        },
+        {
+            "id": "chartTitle",
+            "description": "Chart title",
+            "default": "Data Chart",
+            "type": "promptString"
+        },
+        {
+            "id": "pivotRows",
+            "description": "Pivot table row fields (space-separated)",
+            "default": "Department",
+            "type": "promptString"
+        },
+        {
+            "id": "pivotValues",
+            "description": "Pivot table value fields (space-separated)",
+            "default": "Salary",
+            "type": "promptString"
+        }
+    ]
+}
